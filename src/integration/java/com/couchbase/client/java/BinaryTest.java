@@ -1,8 +1,11 @@
 package com.couchbase.client.java;
 
 import com.couchbase.client.core.message.ResponseStatus;
+import com.couchbase.client.java.convert.Converter;
 import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.document.json.JsonObject;
+import com.couchbase.client.java.customConverter.StringDocument;
+import com.couchbase.client.java.customConverter.StringJsonConverter;
 import com.couchbase.client.java.util.TestProperties;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -47,6 +50,24 @@ public class BinaryTest {
       .toBlockingObservable()
       .single();
     assertEquals(content.getString("hello"), response.content().getString("hello"));
+  }
+
+  @Test
+  public void shouldInsertAndGetWithCustomConverter() {
+    final String content = "{\"hello\": \"world\"}";
+    final StringDocument doc = StringDocument.create("insert-custom", content);
+    final Converter<StringDocument, String> converter = new StringJsonConverter();
+    final StringDocument response = bucket
+        .insert(doc, converter)
+        .flatMap(new Func1<StringDocument, Observable<StringDocument>>() {
+          @Override
+          public Observable<StringDocument> call(StringDocument document) {
+            return bucket.get("insert-custom", converter);
+          }
+        })
+        .toBlockingObservable()
+        .single();
+    assertEquals(content, response.content());
   }
 
   @Test

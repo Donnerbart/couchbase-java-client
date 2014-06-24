@@ -1,5 +1,6 @@
 package com.couchbase.client.java;
 
+import com.couchbase.client.java.convert.Converter;
 import com.couchbase.client.java.document.Document;
 import com.couchbase.client.java.document.JsonDocument;
 import com.couchbase.client.java.query.Query;
@@ -37,7 +38,18 @@ public interface Bucket {
     * @param target the document type.
     * @return the loaded and converted document.
     */
-    <D extends Document<?>> Observable<D> get(String id, Class<D> target);
+    <D extends Document<T>, T> Observable<D> get(String id, Class<D> target);
+
+    /**
+    * Get a {@link Document} by its unique ID.
+    *
+    * The loaded document will be converted with the custom converter.
+    *
+    * @param id the ID of the document.
+    * @param converter converter for the document type.
+    * @return the loaded and converted document.
+    */
+    <D extends Document<T>, T> Observable<D> get(String id, Converter<D, T> converter);
 
     /**
     * Insert a {@link Document}.
@@ -46,7 +58,17 @@ public interface Bucket {
     * @param <D> the type of the document, which is inferred from the instance.
     * @return the document again.
     */
-    <D extends Document<?>> Observable<D> insert(D document);
+    <D extends Document<T>, T> Observable<D> insert(D document);
+
+  /**
+   * Insert a {@link Document}.
+   *
+   * @param document the document to insert.
+   * @param converter converter for the document type.
+   * @param <D> the type of the document, which is inferred from the instance.
+   * @return the document again.
+   */
+    <D extends Document<T>, T> Observable<D> insert(D document, Converter<D, T> converter);
 
     /**
     * Upsert a {@link Document}.
@@ -65,7 +87,6 @@ public interface Bucket {
     * @return the document again.
     */
     <D extends Document<?>> Observable<D> replace(D document);
-
 
     /**
     * Remove the given {@link Document}.

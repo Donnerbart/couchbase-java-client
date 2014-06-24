@@ -49,30 +49,40 @@ public class CouchbaseBucket implements Bucket {
 
   @Override
   @SuppressWarnings("unchecked")
-  public <D extends Document<?>> Observable<D> get(final String id, final Class<D> target) {
-    return core.<GetResponse>send(new GetRequest(id, bucket)).map(new Func1<GetResponse, D>() {
+  public <D extends Document<T>, T> Observable<D> get(final String id, final Class<D> target) {
+    return get(id, (Converter<D, T>) converters.get(target));
+  }
+
+  @Override
+  public <D extends Document<T>, T> Observable<D> get(final String id, final Converter<D, T> converter) {
+    return core
+      .<GetResponse>send(new GetRequest(id, bucket))
+      .map(new Func1<GetResponse, D>() {
         @Override
         public D call(final GetResponse response) {
-          Converter<?, Object> converter = (Converter<?, Object>) converters.get(target);
-          Object content = response.status() == ResponseStatus.SUCCESS ? converter.decode(response.content()) : null;
-          return (D) converter.newDocument(id, content, response.cas(), 0, response.status());
+          T content = response.status() == ResponseStatus.SUCCESS ? converter.decode(response.content()) : null;
+          return converter.newDocument(id, content, response.cas(), 0, response.status());
         }
-      }
-    );
+      });
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public <D extends Document<?>> Observable<D> insert(final D document) {
-    final Converter<?, Object> converter = (Converter<?, Object>) converters.get(document.getClass());
-    ByteBuf content = converter.encode(document.content());
+  public <D extends Document<T>, T> Observable<D> insert(final D document) {
+    return insert(document, (Converter<D, T>) converters.get(document.getClass()));
+  }
+
+  @Override
+  public <D extends Document<T>, T> Observable<D> insert(final D document, final Converter<D, T> converter) {
+    final ByteBuf content = converter.encode(document.content());
     return core
       .<InsertResponse>send(new InsertRequest(document.id(), content, bucket))
       .map(new Func1<InsertResponse, D>() {
         @Override
         public D call(InsertResponse response) {
-          return (D) converter.newDocument(document.id(), document.content(), response.cas(), document.expiry(),
-              response.status());
+          return converter.newDocument(
+              document.id(), document.content(), response.cas(), document.expiry(), response.status()
+          );
         }
       });
   }
@@ -81,15 +91,15 @@ public class CouchbaseBucket implements Bucket {
   @SuppressWarnings("unchecked")
   public <D extends Document<?>> Observable<D> upsert(final D document) {
     final Converter<?, Object> converter = (Converter<?, Object>) converters.get(document.getClass());
-    ByteBuf content = converter.encode(document.content());
+    final ByteBuf content = converter.encode(document.content());
     return core.<UpsertResponse>send(new UpsertRequest(document.id(), content, bucket))
-      .map(new Func1<UpsertResponse, D>() {
-        @Override
-        public D call(UpsertResponse response) {
+        .map(new Func1<UpsertResponse, D>() {
+          @Override
+          public D call(UpsertResponse response) {
             return (D) converter.newDocument(document.id(), document.content(), response.cas(), document.expiry(),
                 response.status());
-        }
-      });
+          }
+        });
   }
 
   @Override
